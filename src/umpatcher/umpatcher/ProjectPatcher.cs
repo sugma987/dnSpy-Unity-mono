@@ -195,7 +195,7 @@ namespace UnityMonoDllSourceCodePatcher {
 		}
 
 		protected void PatchOutDirs() {
-			var newVersion = new UnityVersion(solutionOptions.UnityVersion.Major, solutionOptions.UnityVersion.Minor, solutionOptions.UnityVersion.Build, string.Empty);
+			var newVersion = new UnityVersion(solutionOptions.UnityVersion.Major, solutionOptions.UnityVersion.Minor, solutionOptions.UnityVersion.Revision, solutionOptions.UnityVersion.Release, string.Empty);
 			var name = Constants.UnityVersionPrefix + newVersion.ToString();
 			var newValue = @"..\..\builds\$(Configuration)\" + name + @"\win$(PlatformArchitecture)\";
 			textFilePatcher.Replace(line => {
