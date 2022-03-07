@@ -21,36 +21,127 @@ using System;
 using System.Text.RegularExpressions;
 
 namespace UnityMonoDllSourceCodePatcher {
+	readonly struct UnityVersionReleaseType : IComparable<UnityVersionReleaseType> {
+		public readonly string Type;
+
+		private UnityVersionReleaseType(string type) => Type = type;
+
+		public static bool TryParse(string value, out UnityVersionReleaseType releaseType) {
+			releaseType = default;
+			if (!(value == "a" || value == "b" || value == "rc"
+				|| value == "" || value == "f" || value == "c"
+				|| value == "p" || value == "x"))
+				return false;
+			releaseType = new UnityVersionReleaseType(value);
+			return true;
+		}
+
+		public static UnityVersionReleaseType Alpha = new UnityVersionReleaseType("a");
+		public static UnityVersionReleaseType Beta = new UnityVersionReleaseType("b");
+		public static UnityVersionReleaseType ReleaseCandidate = new UnityVersionReleaseType("rc");
+		public static UnityVersionReleaseType Untyped = new UnityVersionReleaseType("");
+		public static UnityVersionReleaseType Final = new UnityVersionReleaseType("f");
+		public static UnityVersionReleaseType Chinese = new UnityVersionReleaseType("c");
+		public static UnityVersionReleaseType Patch = new UnityVersionReleaseType("p");
+		public static UnityVersionReleaseType Experimental = new UnityVersionReleaseType("x");
+
+		public byte ToNumber() =>
+			Type == "a" ? (byte)0 :
+			Type == "b" ? (byte)1 :
+			Type == "rc" ? (byte)2 :
+			Type == "" ? (byte)3 :
+			Type == "f" || Type == "c" ? (byte)4 :
+			Type == "p" ? (byte)5 :
+			Type == "x" ? (byte)6 :
+			throw new InvalidOperationException($"Unknown Unity release type: {Type}");
+
+		public int CompareTo(UnityVersionReleaseType other) => ToNumber().CompareTo(other.ToNumber());
+
+		public override string ToString() =>
+			Type == "a" ? nameof(Alpha) :
+			Type == "b" ? nameof(Beta) :
+			Type == "rc" ? nameof(ReleaseCandidate) :
+			Type == "" ? nameof(Untyped) :
+			Type == "f" ? nameof(Final) :
+			Type == "c" ? nameof(Chinese) :
+			Type == "p" ? nameof(Patch) :
+			Type == "x" ? nameof(Experimental) :
+			throw new InvalidOperationException($"Unknown Unity release type: {Type}");
+	}
+	readonly struct UnityVersionRelease : IComparable<UnityVersionRelease> {
+		public readonly UnityVersionReleaseType ReleaseType;
+		public readonly uint Release;
+
+		public UnityVersionRelease(UnityVersionReleaseType releaseType, uint release) {
+			ReleaseType = releaseType;
+			Release = release;
+		}
+
+		public static bool TryParse(string value, out UnityVersionRelease release) {
+			release = default;
+			if (value == "") {
+				release = UnityVersionRelease.Untyped;
+				return true;
+			}
+			var m = Regex.Match(value, @"^(a|b|rc|f|p|x)(\d+)$");
+			if (!m.Success)
+				return false;
+			if (m.Groups.Count != 3)
+				return false;
+			if (!UnityVersionReleaseType.TryParse(m.Groups[1].Value, out UnityVersionReleaseType releaseType))
+				return false;
+			if (!uint.TryParse(m.Groups[2].Value, out uint _release))
+				return false;
+			release = new UnityVersionRelease(releaseType, _release);
+			return true;
+		}
+
+		public static UnityVersionRelease Untyped = new UnityVersionRelease(UnityVersionReleaseType.Untyped, 0);
+
+		public int CompareTo(UnityVersionRelease other) {
+			int c = ReleaseType.CompareTo(other.ReleaseType);
+			if (c != 0)
+				return c;
+			return ReleaseType.CompareTo(UnityVersionReleaseType.Untyped) == 0 ? 0 : Release.CompareTo(other.Release);
+		}
+		public override string ToString() =>
+			ReleaseType.CompareTo(UnityVersionReleaseType.Untyped) == 0 ? "" : $"{ReleaseType.Type}{Release}";
+	}
+
 	readonly struct UnityVersion : IComparable<UnityVersion> {
 		public readonly uint Major;
 		public readonly uint Minor;
-		public readonly uint Build;
-		public readonly string Extra;
+		public readonly uint Revision;
+		public readonly UnityVersionRelease Release;
+		public readonly string Suffix;
 
-		public UnityVersion(uint major, uint minor, uint build, string extra) {
+		public UnityVersion(uint major, uint minor, uint revision, UnityVersionRelease release, string suffix) {
 			Major = major;
 			Minor = minor;
-			Build = build;
-			Extra = extra ?? string.Empty;
+			Revision = revision;
+			Release = release;
+			Suffix = suffix;
 		}
 
 		public static bool TryParse(string value, out UnityVersion version) {
 			version = default;
-			if (string.IsNullOrEmpty(value))
+			if (value == "")
 				return false;
-			var m = Regex.Match(value, @"^(\d+)\.(\d+)\.(\d+)(-[\-.\w]*)?$");
+			var m = Regex.Match(value, @"^(\d+)\.(\d+)\.(\d+)((a|b|rc|f|p|x)\d+)?(-[\-.\w]*)?$");
 			if (!m.Success)
 				return false;
-			if (m.Groups.Count != 5)
+			if (m.Groups.Count != 7)
 				return false;
 			if (!uint.TryParse(m.Groups[1].Value, out uint major))
 				return false;
 			if (!uint.TryParse(m.Groups[2].Value, out uint minor))
 				return false;
-			if (!uint.TryParse(m.Groups[3].Value, out uint build))
+			if (!uint.TryParse(m.Groups[3].Value, out uint revision))
+				return false;
+			if (!UnityVersionRelease.TryParse(m.Groups[4].Value, out UnityVersionRelease release))
 				return false;
 
-			version = new UnityVersion(major, minor, build, m.Groups[4].Value);
+			version = new UnityVersion(major, minor, revision, release, m.Groups[6].Value);
 			return true;
 		}
 
@@ -61,12 +152,15 @@ namespace UnityMonoDllSourceCodePatcher {
 			c = Minor.CompareTo(other.Minor);
 			if (c != 0)
 				return c;
-			c = Build.CompareTo(other.Build);
+			c = Revision.CompareTo(other.Revision);
 			if (c != 0)
 				return c;
-			return StringComparer.OrdinalIgnoreCase.Compare(Extra ?? string.Empty, other.Extra ?? string.Empty);
+			c = Release.CompareTo(other.Release);
+			if (c != 0)
+				return c;
+			return StringComparer.OrdinalIgnoreCase.Compare(Suffix, other.Suffix);
 		}
 
-		public override string ToString() => $"{Major}.{Minor}.{Build}{Extra}";
+		public override string ToString() => $"{Major}.{Minor}.{Release}{Suffix}";
 	}
 }
