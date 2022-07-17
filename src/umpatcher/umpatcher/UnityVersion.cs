@@ -161,6 +161,6 @@ namespace UnityMonoDllSourceCodePatcher {
 			return StringComparer.OrdinalIgnoreCase.Compare(Suffix, other.Suffix);
 		}
 
-		public override string ToString() => $"{Major}.{Minor}.{Release}{Suffix}";
+		public override string ToString() => $"{Major}.{Minor}.{Revision}{Release}{Suffix}";
 	}
 }
