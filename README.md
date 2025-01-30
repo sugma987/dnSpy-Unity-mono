@@ -35,9 +35,11 @@ The `master` branch contains the original files. You have to check out the `dnSp
 	- Find the closest merge by comparing the merge date with the timestamp reported by `umpatcher` above
 	- Remember the commit hash, you'll need it later
 - Run umpatcher again to patch the code and commit it to the dnSpy-Unity-mono repo
-	- `umpatcher 5.4.3 aa8a6e7afc2f4fe63921df4fe8a18cfd0a441d19 "C:\path\to\Unity-mono" "C:\path\to\dnSpy-Unity-mono"`
+	- `umpatcher 5.4.3 aa8a6e7afc2f4fe63921df4fe8a18cfd0a441d19 "C:\path\to\Unity-mono-repo" "C:\path\to\dnSpy-Unity-mono-repo"`
 
 # Building `mono.dll` & `mono-2.0-bdwgc.dll`
+
+- Use Visual Studio 2017 to build the respective projects
 
 - `dnSpy-Unity-mono-vZZZZ.x.sln` (Unity with .NET 2.0-3.5 assemblies), where `ZZZZ` is the major version number, eg. 4, 5, 2017, ...
 	- Use configuration `Release_eglib`
@@ -46,6 +48,8 @@ The `master` branch contains the original files. You have to check out the `dnSp
 - `dnSpy-Unity-mono-vZZZZ.x-V40.sln` (Unity with .NET 4.x assemblies), where `ZZZZ` is the major version number, eg. 2017, 2018, ...
 	- Use configuration `Release`
 	- Use platform `x86` or `x64`
+
+- The built project is found in the `builds/` directory of the repo root
 
 # Commit hashes
 
